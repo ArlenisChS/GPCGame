@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset='utf-8'>
+		<title>Proyecto Final GPC</title>
+		<style>
+			#blocker {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,0.5);
+			}
+
+			#instructions {
+				width: 100%;
+				height: 100%;
+
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+
+				text-align: center;
+				font-size: 14px;
+				cursor: pointer;
+			}
+			body {
+				background-color: rgb(255, 255, 255);
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+  <body>
+    <!-- Contenedor del app -->
+    <div id="blocker">
+			<div id="instructions">
+				<p style="font-size:36px">
+					Click to play
+				</p>
+				<p>
+					Move: WASD<br/>
+					Look: MOUSE
+				</p>
+			</div>
+		</div>
+
+    <script type="module">
+      import * as THREE from 'https://cdn.skypack.dev/three';
+      import Stats from 'https://cdn.skypack.dev/three/examples/jsm/libs/stats.module';
+      import { OrbitControls } from 'https://cdn.skypack.dev/three/examples/jsm/controls/OrbitControls.js';
+      import datGui from 'https://cdn.skypack.dev/dat-gui';
+
+      import { PointerLockControls } from 'https://cdn.skypack.dev/three/examples/jsm/controls/PointerLockControls.js';
+      import { TextGeometry } from 'https://cdn.skypack.dev/three/examples/jsm/geometries/TextGeometry.js';
+      
+      import { TWEEN } from 'https://cdn.skypack.dev/three/examples/jsm/libs/tween.module.min';
+      import { GLTFLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/GLTFLoader';
+      import { OBJLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/OBJLoader';
+      import { MTLLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/MTLLoader';
+
+      // Variables de consenso
+      var renderer, scene, cameraControls, 
+        cameraPer, raycaster;
+
+      // Escena
+      var plataformaDown, plataformaUp, globo, flecha;
+      var puntosGlobos, tamañoGlobo, plataformaDownRadio;
+      var grupoFlechas;
+      var currentFlecha;
+
+      // Constantes
+      var tamañoTerreno = 1000;
+      var velocityConst = 40000.0;
+      var brakeSmooth = 10.0;
+      var alturaPlataformaUp = 300;
+      var anguloRotacionPlataforma = 0.025;
+      var speedGlobo = 15000;
+      var globosporsegundo = 0.5;
+      var estadoStart = "Start";
+      var estadoFinishedStart = "Finished Start";
+      var funcLoadingInProgress = function ( xhr ) {
+            console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+          };
+      var funcLoadingHasError = function ( error ) {
+            console.log( 'An error happened' );
+          };
+
+      // Tiempo y Estado
+      var estadoApp="Start";
+			let antes = performance.now();
+
+      // Movimiento
+      let moveForward = false;
+			let moveBackward = false;
+			let moveLeft = false;
+			let moveRight = false;
+
+			const velocity = new THREE.Vector3();
+			const direction = new THREE.Vector3();
+
+      // Otras variables      
+      var loaderGLTF;
+
+      // Acciones
+      init();
+      loadScene();
+      render();
+
+      function initControlesCamara() {
+        cameraControls = new PointerLockControls( cameraPer, document.body );
+
+				const blocker = document.getElementById( 'blocker' );
+				const instructions = document.getElementById( 'instructions' );
+
+				instructions.addEventListener( 'click', function () {
+					cameraControls.lock();
+				} );
+
+				cameraControls.addEventListener( 'lock', function () {
+					instructions.style.display = 'none';
+					blocker.style.display = 'none';
+				} );
+
+				cameraControls.addEventListener( 'unlock', function () {
+					blocker.style.display = 'block';
+					instructions.style.display = '';
+				} );
+
+				scene.add( cameraControls.getObject() );
+
+				const onKeyDown = function ( event ) {
+					switch ( event.code ) {
+						case 'ArrowUp':
+						case 'KeyW':
+							moveForward = true;
+							break;
+
+						case 'ArrowLeft':
+						case 'KeyA':
+							moveLeft = true;
+							break;
+
+						case 'ArrowDown':
+						case 'KeyS':
+							moveBackward = true;
+							break;
+
+						case 'ArrowRight':
+						case 'KeyD':
+							moveRight = true;
+							break;
+					}
+				};
+
+				const onKeyUp = function ( event ) {
+					switch ( event.code ) {
+						case 'ArrowUp':
+						case 'KeyW':
+							moveForward = false;
+							break;
+
+						case 'ArrowLeft':
+						case 'KeyA':
+							moveLeft = false;
+							break;
+
+						case 'ArrowDown':
+						case 'KeyS':
+							moveBackward = false;
+							break;
+
+						case 'ArrowRight':
+						case 'KeyD':
+							moveRight = false;
+							break;
+					}
+				};
+
+				document.addEventListener( 'keydown', onKeyDown );
+				document.addEventListener( 'keyup', onKeyUp );
+      }
+
+      function init() {
+        // Motor de render
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor( new THREE.Color(0xFFFFFF) );
+        renderer.shadowMap.enabled = true;
+        renderer.antialias = true;
+        renderer.autoClear = false;
+        document.body.appendChild( renderer.domElement );
+        // document.getElementById("instructions").appendChild(renderer.domElement);
+
+        // Raycaster
+        raycaster = new THREE.Raycaster( 
+          new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
+
+        // Paredes
+        const txParedes = new THREE.CubeTextureLoader()
+        .setPath( 'images/' )
+        .load([ 'posx.jpg','negx.jpg',
+                'posy.jpg','negy.jpg',
+                'posz.jpg','negz.jpg'] );
+
+        // Escena
+        scene = new THREE.Scene();
+        // scene.background = txParedes;
+
+        // Camara
+        cameraPer = new THREE.PerspectiveCamera( 
+          75, window.innerWidth / window.innerHeight,
+          0.1, 3000 );
+        cameraPer.position.set( 300, 150, 300);
+        cameraPer.lookAt(new THREE.Vector3(0,0,0));
+        
+        // Controles de Camara
+        initControlesCamara();
+        
+        // Luces
+        var luzAmbiente = new THREE.AmbientLight(0xFFFFFF, 0.5);
+        scene.add(luzAmbiente);
+
+        // var luzDireccional = new THREE.DirectionalLight(0x404040, 0.5);
+        // luzDireccional.position.set(-200, 200, 0);
+        // luzDireccional.target.position.set(-200, 200, 0);
+        // scene.add(luzDireccional);
+
+        // var luzFocal = new THREE.SpotLight(0xFFFFFF, 0.3);
+        // luzFocal.position.set(0, 300, 300);
+        // luzFocal.target.position.set(0, 0, 0);
+        // luzFocal.angle = Math.PI / 4;
+        // luzFocal.penumbra = 0.2;
+        // luzFocal.castShadow = true;
+
+        // luzFocal.shadow.camera.near = 100;
+        // luzFocal.shadow.camera.far = 1500;
+        // luzFocal.shadow.camera.fov = 50;
+        // luzFocal.shadow.mapSize.width = 1024;
+        // luzFocal.shadow.camera.height = 1024;
+        // scene.add(luzFocal);
+
+        // Capturar el evento de resize
+        window.addEventListener('resize', updateAspectRatio);
+
+        // Cargador de objetos
+        loaderGLTF = new GLTFLoader();
+
+        // Otros
+        grupoFlechas = new THREE.Group();
+        scene.add(grupoFlechas);
+      }
+
+      function paintPuntosGlobos(puntos) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute( 'position', 
+          new THREE.Float32BufferAttribute( puntos.flat(Infinity), 3 ) );
+        const material = new THREE.PointsMaterial( { color: 'red', size: 5 } );
+        const points = new THREE.Points( geometry, material );
+        scene.add( points );
+      }
+
+      function loadScenePlataformaDown() {        
+        loaderGLTF.load(
+          'models/circle/scene.gltf',          
+          // called when the resource is loaded
+          function ( gltf ) {            
+            plataformaDown = gltf.scene.children[0];
+            plataformaDown.name = "plataformaDown";
+            plataformaDown.scale.set(20, 20, 20);
+            
+            var boundingBox = new THREE.Box3().setFromObject(plataformaDown);
+            var size = boundingBox.getSize(new THREE.Vector3());
+
+            plataformaDownRadio = Math.max(size.x, size.y)/2;
+            
+            var hs = size.z/16; var ws = size.x/12;
+            puntosGlobos = [
+              [2*hs, 0, -3*ws], [2*hs, 0, 3*ws],
+              [-2*hs, 0, -3*ws], [-2*hs, 0, 3*ws],
+              [4*hs, 0, -ws], [4*hs, 0, ws],
+              [-4*hs, 0, -ws], [-4*hs, 0, ws],
+              [0, 0, -ws], [0, 0, ws],
+            ];
+            paintPuntosGlobos(puntosGlobos);
+
+            plataformaDown.translateY(-size.y/2);
+            scene.add( plataformaDown );
+          },
+          // called while loading is progressing
+          funcLoadingInProgress,
+          // called when loading has errors
+          funcLoadingHasError
+        );
+      }
+
+      function loadScenePlataformaUp() {
+        loaderGLTF.load(
+          'models/circle/scene.gltf',
+          // called when the resource is loaded
+          function ( gltf ) {
+            plataformaUp = gltf.scene.children[0];
+            plataformaUp.name = "plataformaUp";
+            plataformaUp.scale.set(20, 20, 20);
+
+            plataformaUp.translateY(-alturaPlataformaUp);
+            scene.add( plataformaUp );
+          },
+          // called while loading is progressing
+          funcLoadingInProgress,
+          // called when loading has errors
+          funcLoadingHasError
+        );
+      }
+
+      function loadGlobo() {
+        loaderGLTF.load(
+          'models/balloon1/scene.gltf',
+          // called when the resource is loaded
+          function ( gltf ) {            
+            globo = gltf.scene.children[0];
+            globo.scale.set(10, 10, 10);
+            globo.name = 'globo';
+
+            var boundingBox = new THREE.Box3().setFromObject(plataformaDown);
+            var size = boundingBox.getSize(new THREE.Vector3());
+            tamañoGlobo = size.y;
+          },
+          // called while loading is progressing
+          funcLoadingInProgress,
+          // called when loading has errors
+          funcLoadingHasError
+        );
+      }
+
+      function loadFlecha() {
+        loaderGLTF.load(
+          'models/arrow/scene.gltf',
+          // called when the resource is loaded
+          function ( gltf ) {
+            
+            flecha = gltf.scene.children[0];
+            flecha.scale.set(0.8, 0.8, 0.8);
+            flecha.name = 'flecha';
+          },
+          // called while loading is progressing
+          funcLoadingInProgress,
+          // called when loading has errors
+          funcLoadingHasError
+        );
+      }
+
+      function loadScene() {
+        // Material suelo
+        var matsuelo = new THREE.MeshLambertMaterial({ color: 'white' });
+
+        // Suelo
+        var suelo = new THREE.Mesh(
+          new THREE.PlaneGeometry(tamañoTerreno, tamañoTerreno, 10, 10),
+          matsuelo
+        );
+        suelo.rotation.x = -Math.PI / 2;
+        suelo.receiveShadow = true;
+        scene.add(suelo);
+        
+        // Cargar y Colocar en Escena
+        loadScenePlataformaDown();
+        loadScenePlataformaUp();
+
+        // Solo Cargar
+        loadGlobo();
+        loadFlecha();
+      }
+
+      function initAnimationPlataforma(plataforma){
+        var movtFrente = new TWEEN.Tween( plataforma.rotation )
+          .to( { y: 2*Math.PI }, 15000)
+          .interpolation( TWEEN.Interpolation.Linear )
+          .repeat(Infinity);
+          // .easing( TWEEN.Easing.Bounce.Out );
+        movtFrente.start();
+      }
+
+      function initAnimationFlecha(flechapos){
+        var movtFrente = new TWEEN.Tween( flechapos )
+          .to( { x:-300}, 5000)
+          .interpolation( TWEEN.Interpolation.Linear )
+          // .easing( TWEEN.Easing.Bounce.Out );
+        movtFrente.start();
+      }
+
+      function initAnimationGlobo(globo){
+        var movtFrente = new TWEEN.Tween( globo.position )
+          .to({ y:alturaPlataformaUp}, speedGlobo)
+          .onUpdate(function(){
+            var boundingBoxGlobo = new THREE.Box3().setFromObject(globo);
+            for(flecha of grupoFlechas.children){
+              var boundingBoxFlecha = new THREE.Box3().setFromObject(flecha);
+              if(boundingBoxGlobo.intersectsBox(boundingBoxFlecha)){
+                scene.remove(globo);
+                grupoFlechas.remove(flecha);
+                break;
+              }
+          }})          
+          .onComplete(function(){
+            scene.remove(globo);
+          });
+        movtFrente.start();
+      }
+
+      function sendGlobo(){
+        var newglobo = globo.clone();
+        var randomValue = puntosGlobos[
+          Math.floor(puntosGlobos.length * Math.random())];
+        newglobo.position.set(randomValue[0], -tamañoGlobo, randomValue[2]);
+        scene.add(newglobo);
+        initAnimationGlobo(newglobo);  
+      }
+
+      function updateAspectRatio() {
+        // Fija el tamaño del lienzo al nuevo tamaño de la ventana del cliente
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        var ar = window.innerWidth / window.innerHeight;
+        cameraPer.aspect = ar;
+        cameraPer.updateProjectionMatrix();
+      }
+
+      function setStatesApp(){
+        if(estadoApp == estadoStart){
+          if(globo != null && 
+            plataformaDown != null && plataformaUp != null &&
+            flecha != null){
+              estadoApp = estadoFinishedStart;
+            }
+        }
+        else if(estadoApp == estadoFinishedStart ){
+          estadoApp = "Finished";
+          initAnimationPlataforma(plataformaDown);
+          initAnimationPlataforma(plataformaUp);
+
+          currentFlecha = flecha.clone();
+          // currentFlecha.position.set(
+          //   cameraPer.position.x,
+          //   cameraPer.position.y,
+          //   cameraPer.position.z);
+          grupoFlechas.add(currentFlecha);
+
+          window.setInterval(sendGlobo, 1000/globosporsegundo);        
+        }
+      }
+
+      function caminar() {
+        const ahora = performance.now();
+
+				if ( cameraControls.isLocked === true ) {
+					const delta = ( ahora - antes )/1000;
+
+					velocity.x -= velocity.x * brakeSmooth * delta;
+					velocity.z -= velocity.z * brakeSmooth * delta;
+
+					direction.z = Number( moveForward ) - Number( moveBackward );
+					direction.x = Number( moveRight ) - Number( moveLeft );
+					direction.normalize(); // this ensures consistent movements in all directions
+
+					if ( moveForward || moveBackward ) velocity.z -= direction.z * velocityConst * delta;
+					if ( moveLeft || moveRight ) velocity.x -= direction.x * velocityConst * delta;
+          
+          var velocitySpace = new THREE.Vector2();
+          var cameraLook = new THREE.Vector3();
+          cameraPer.getWorldDirection(cameraLook);
+          cameraLook.y = 0;
+
+          var norm = Math.sqrt(cameraLook.dot(cameraLook));
+          var theta = Math.acos(cameraLook.z/norm);
+
+          velocitySpace.x = Math.cos(theta) * velocity.x - 
+            Math.sin(theta) * velocity.z;
+          velocitySpace.y = Math.sin(theta) * velocity.x + 
+            Math.cos(theta) * velocity.z;
+        
+          var tempPositionX = Math.abs(cameraPer.position.x + (velocitySpace.x * delta));
+          var tempPositionZ = Math.abs(cameraPer.position.z + (velocitySpace.y * delta));
+
+          var distCentro = Math.sqrt(Math.pow(tempPositionX, 2) 
+            + Math.pow(tempPositionZ, 2));
+          if (Math.round(distCentro) < plataformaDownRadio + 200){
+            velocity.x = 0;
+            velocity.z = 0;
+          }
+
+          cameraControls.moveRight( -velocity.x * delta );
+					cameraControls.moveForward( -velocity.z * delta );		
+				}
+        // currentFlecha.position.set(
+        //   cameraPer.position.x-50,
+        //   cameraPer.position.y-50,
+        //   cameraPer.position.z-50);
+
+				antes = ahora;
+      }
+
+      function update() {
+        TWEEN.update();
+        setStatesApp();
+        caminar();
+      }
+
+      function render() {
+        requestAnimationFrame(render);
+        update();
+        renderer.clear();
+
+        // Perspectiva
+        renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+        renderer.render(scene, cameraPer);
+      }
+    </script>
+  </body>
+</html>
