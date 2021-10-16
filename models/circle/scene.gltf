@@ -3,24 +3,24 @@
     {
       "bufferView": 0,
       "componentType": 5126,
-      "count": 10003,
+      "count": 65535,
       "max": [
         10.107075691223145,
-        0.7751259803771973,
-        10.117551803588867
+        0.775124728679657,
+        10.118428230285645
       ],
       "min": [
-        -10.106924057006836,
-        -0.7751200199127197,
-        -10.118441581726074
+        -10.10682487487793,
+        -0.7751265168190002,
+        -8.594691276550293
       ],
       "type": "VEC3"
     },
     {
       "bufferView": 0,
-      "byteOffset": 120036,
+      "byteOffset": 786420,
       "componentType": 5126,
-      "count": 10003,
+      "count": 65535,
       "max": [
         0.9999990463256836,
         0.9997768402099609,
@@ -36,7 +36,60 @@
     {
       "bufferView": 1,
       "componentType": 5126,
-      "count": 10003,
+      "count": 65535,
+      "max": [
+        0.0,
+        0.6980392336845398,
+        1.0,
+        1.0
+      ],
+      "min": [
+        0.0,
+        0.6980392336845398,
+        1.0,
+        1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1572840,
+      "componentType": 5126,
+      "count": 34460,
+      "max": [
+        8.58859634399414,
+        0.7751266956329346,
+        6.984036922454834
+      ],
+      "min": [
+        -9.907003402709961,
+        -0.7751261591911316,
+        -10.118509292602539
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1986360,
+      "componentType": 5126,
+      "count": 34460,
+      "max": [
+        0.7857939004898071,
+        0.9997768402099609,
+        0.6889302134513855
+      ],
+      "min": [
+        -0.9999990463256836,
+        -0.9997768402099609,
+        -0.9999990463256836
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 1048560,
+      "componentType": 5126,
+      "count": 34460,
       "max": [
         0.0,
         0.6980392336845398,
@@ -56,8 +109,8 @@
     "extras": {
       "author": "ENEA LE FONS (https://sketchfab.com/enealefons)",
       "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
-      "source": "https://sketchfab.com/3d-models/uxrzone-circle-floor-nav-dd06c5ce07564734b2dadbbab0378484",
-      "title": "UXRZONE CIRCLE floor NAV"
+      "source": "https://sketchfab.com/3d-models/uxrzone-circle-floor-104391b50327479b9d87b0b8ad71241c",
+      "title": "UXRZONE Circle Floor"
     },
     "generator": "Sketchfab-10.59.0",
     "version": "2.0"
@@ -65,15 +118,15 @@
   "bufferViews": [
     {
       "buffer": 0,
-      "byteLength": 240072,
+      "byteLength": 2399880,
       "byteStride": 12,
       "name": "floatBufferViews",
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteLength": 160048,
-      "byteOffset": 240072,
+      "byteLength": 1599920,
+      "byteOffset": 2399880,
       "byteStride": 16,
       "name": "floatBufferViews",
       "target": 34962
@@ -81,29 +134,27 @@
   ],
   "buffers": [
     {
-      "byteLength": 400120,
+      "byteLength": 3999800,
       "uri": "scene.bin"
     }
   ],
+  "extensionsUsed": [
+    "KHR_materials_unlit"
+  ],
   "materials": [
     {
-      "alphaMode": "BLEND",
       "doubleSided": true,
       "emissiveFactor": [
         0.0,
         1.0,
         1.0
       ],
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
       "name": "Scene_-_Root",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          0.7799722136086435
-        ],
-        "metallicFactor": 0.0,
-        "roughnessFactor": 0.6
+        "metallicFactor": 0.0
       }
     }
   ],
@@ -121,6 +172,20 @@
           "mode": 0
         }
       ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "COLOR_0": 5,
+            "NORMAL": 4,
+            "POSITION": 3
+          },
+          "material": 0,
+          "mode": 0
+        }
+      ]
     }
   ],
   "nodes": [
@@ -129,34 +194,39 @@
         1
       ],
       "matrix": [
-        0.09919046610593796,
+        0.06632091104984283,
         0.0,
         0.0,
         0.0,
         0.0,
-        -0.09919046610593796,
-        -4.4049415717645405e-17,
+        -0.06632091104984283,
+        -2.945240098466099e-17,
         0.0,
         0.0,
-        4.4049415717645405e-17,
-        -0.09919046610593796,
+        2.945240098466099e-17,
+        -0.06632091104984283,
         0.0,
         0.0,
-        -0.0004060864448547362,
-        -0.0004121661186218263,
+        -4.357099533081054e-05,
+        -4.321336746215821e-05,
         1.0
       ],
       "name": "Sketchfab_model"
     },
     {
       "children": [
-        2
+        2,
+        3
       ],
       "name": "Geode"
     },
     {
       "mesh": 0,
       "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
     }
   ],
   "scene": 0,

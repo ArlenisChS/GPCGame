@@ -64,7 +64,7 @@
       var velocidadLanzamiento = 100;
       var tamañoTerreno = 1000;
       // var velocityConst = 40000.0;
-      var alturaPlataformaUp = 800;
+      var alturaPlataformaUp = 300;
       var anguloRotacionPlataforma = 0.025;
       var speedGlobo = 15000;
       var globosporsegundo = 0.5;
@@ -84,12 +84,10 @@
       // Escena
       var plataformaDown, plataformaUp, globo, flecha;
       var puntosGlobos, tamañoGlobo, plataformaDownRadio;
-      var groupObjects;
 
       // Tiempo y Estado
       var estadoApp="Start";
-			var antes;
-      var globalScore;   
+			let antes = performance.now();
 
       // Movimiento
       // let moveForward = false;
@@ -210,15 +208,6 @@
 				document.addEventListener( 'keyup', onKeyUp );
       }
 
-      function updateAspectRatio() {
-        // Fija el tamaño del lienzo al nuevo tamaño de la ventana del cliente
-        renderer.setSize(window.innerWidth, window.innerHeight);
-
-        var ar = window.innerWidth / window.innerHeight;
-        cameraPer.aspect = ar;
-        cameraPer.updateProjectionMatrix();
-      }
-
       function init() {
         // Motor de render
         renderer = new THREE.WebGLRenderer();
@@ -238,9 +227,6 @@
         // Escena
         scene = new THREE.Scene();
         scene.background = txParedes;
-
-        groupObjects = new THREE.Group();
-        scene.add(groupObjects);
 
         // Camara
         initCamara();
@@ -290,7 +276,7 @@
             plataformaDown.name = "plataformaDown";
 
             plataformaUp.translateY(-alturaPlataformaUp);
-            groupObjects.add( plataformaUp );
+            scene.add( plataformaUp );
             
             var boundingBox = new THREE.Box3().setFromObject(plataformaDown);
             var size = boundingBox.getSize(new THREE.Vector3());
@@ -308,7 +294,7 @@
             // paintPuntosGlobos(puntosGlobos);
 
             plataformaDown.translateY(-size.y/2);
-            groupObjects.add( plataformaDown );
+            scene.add( plataformaDown );
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -345,7 +331,7 @@
             globo.scale.set(10, 10, 10);
             globo.name = 'globo';
 
-            var boundingBox = new THREE.Box3().setFromObject(globo);
+            var boundingBox = new THREE.Box3().setFromObject(plataformaDown);
             var size = boundingBox.getSize(new THREE.Vector3());
             tamañoGlobo = size.y;
           },
@@ -374,7 +360,7 @@
             flecha.receiveShadow = true;
             flecha.castShadow = true;
             flecha.scale.set(0.05, 0.05, 0.05);
-            flecha.name = 'flecha';
+            flecha.name = 'granade';
           },
           // called while loading is progressing
           funcLoadingInProgress,
@@ -384,15 +370,8 @@
       }
 
       function createSueloParedes() {
-        // Textura
-        var txSuelo = new THREE.TextureLoader().load('images/bricks.jpg');
-        txSuelo.repeat.set(2, 2);
-        txSuelo.wrapS = txSuelo.wrapT = THREE.MirroredRepeatWrapping;
-        txSuelo.magFilter = THREE.LinearFilter;
-
         // Material
-        var matsuelo = new THREE.MeshLambertMaterial( { 
-          shading: THREE.SmoothShading, map: txSuelo } );
+        var matsuelo = new THREE.MeshLambertMaterial({ color: 'white' });
 
         // Suelo
         var suelo = new THREE.Mesh(
@@ -402,33 +381,14 @@
         suelo.rotation.x = -Math.PI / 2;
         suelo.receiveShadow = true;
         suelo.castShadow = true;
-        groupObjects.add(suelo);
+        scene.add(suelo);
 
         // Paredes
-        var pardesGeo = new THREE.BoxGeometry(tamañoTerreno, 150, 30);
-
-        var paredLeft = new THREE.Mesh(pardesGeo, matsuelo);
-        paredLeft.position.z = tamañoTerreno/2;
-        groupObjects.add(paredLeft);
-
-        var paredRight = new THREE.Mesh(pardesGeo, matsuelo);
-        paredRight.position.z = -tamañoTerreno/2;
-        groupObjects.add(paredRight);
-
-        var paredFront = new THREE.Mesh(pardesGeo, matsuelo);
-        paredFront.rotation.y = Math.PI/2;
-        paredFront.position.x = tamañoTerreno/2;
-        groupObjects.add(paredFront);
-
-        var paredBack = new THREE.Mesh(pardesGeo, matsuelo);
-        paredBack.rotation.y = Math.PI/2;
-        paredBack.position.x = -tamañoTerreno/2;
-        groupObjects.add(paredBack);
       }
       
       function loadScene() {
-        // Suelo y Paredes
-        createSueloParedes();
+        // Suelo
+        createSueloParedes
         
         // Cargar y Colocar en Escena
         loadScenePlataformas();
@@ -439,48 +399,47 @@
       }
 
       function initAnimationPlataforma(plataforma){
-        var movObjeto = new TWEEN.Tween( plataforma.rotation )
+        var movtFrente = new TWEEN.Tween( plataforma.rotation )
           .to( { y: 2*Math.PI }, 15000)
           .interpolation( TWEEN.Interpolation.Linear )
           .repeat(Infinity);
-        movObjeto.start();
+          // .easing( TWEEN.Easing.Bounce.Out );
+        movtFrente.start();
       }
-      
+
       function initAnimationFlecha(
         newflecha, listaX, listaY, listaZ){
-        var movObjeto = new TWEEN.Tween(newflecha.position)
+        var movtFrente = new TWEEN.Tween(newflecha.position)
           .to({
             x: listaX,
             y: listaY,
             z: listaZ}, 
-            2000)
+            2000) // relative animation
           .interpolation(TWEEN.Interpolation.Bezier)
           .onComplete(function(){
             scene.remove(newflecha);
           })
           .onUpdate(function(){
-            var boundingBoxFlecha = new THREE.Box3().setFromObject(newflecha);
-            for(let item of groupObjects.children){
-              var boundingBoxItem = new THREE.Box3().setFromObject(item);
-              if(boundingBoxFlecha.intersectsBox(boundingBoxItem)){
-                console.log(item.name);
-                scene.remove(newflecha);
-                if (item.name === 'globo') groupObjects.remove(item);
-                movObjeto.stop();
-                break;
-              }
-            }
+            // var boundingBoxGlobo = new THREE.Box3().setFromObject(globo);
+            // for(flecha of grupoFlechas.children){
+            //   var boundingBoxFlecha = new THREE.Box3().setFromObject(flecha);
+            //   if(boundingBoxGlobo.intersectsBox(boundingBoxFlecha)){
+            //     scene.remove(globo);
+            //     grupoFlechas.remove(flecha);
+            //     break;
+            //   }
+            // }
           });
-        movObjeto.start();
+        movtFrente.start();
       }
 
       function initAnimationGlobo(globo){
-        var movObjeto = new TWEEN.Tween( globo.position )
+        var movtFrente = new TWEEN.Tween( globo.position )
           .to({ y:alturaPlataformaUp}, speedGlobo)          
           .onComplete(function(){
-            groupObjects.remove(globo);
+            scene.remove(globo);
           });
-        movObjeto.start();
+        movtFrente.start();
       }
 
       function sendGlobo(){
@@ -488,7 +447,7 @@
         var randomValue = puntosGlobos[
           Math.floor(puntosGlobos.length * Math.random())];
         newglobo.position.set(randomValue[0], -tamañoGlobo, randomValue[2]);
-        groupObjects.add(newglobo);
+        scene.add(newglobo);
         initAnimationGlobo(newglobo);  
       }
 
@@ -528,9 +487,17 @@
           puntosY.push(rfunc(newflecha.position.y, v0.y, puntosDelta[i], vectorAceleracion.y));
           puntosZ.push(rfunc(newflecha.position.z, v0.z, puntosDelta[i], vectorAceleracion.z));
         }
-        
-        scene.add(newflecha);
+
         initAnimationFlecha(newflecha, puntosX, puntosY, puntosZ);
+      }
+
+      function updateAspectRatio() {
+        // Fija el tamaño del lienzo al nuevo tamaño de la ventana del cliente
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        var ar = window.innerWidth / window.innerHeight;
+        cameraPer.aspect = ar;
+        cameraPer.updateProjectionMatrix();
       }
 
       function setStatesApp(){
