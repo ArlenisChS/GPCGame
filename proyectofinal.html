@@ -4,13 +4,20 @@
 		<meta charset='utf-8'>
 		<title>Proyecto Final GPC</title>
 		<style>
-			#blocker {
-				position: absolute;
+      #gameStats{
+        position: fixed;
+        bottom: 0;
+        left: 0;
+      }
+      p{
+        font-weight: bold; 
+        font-family: Candara;
+      }
+      #fullScreen {
+        position: absolute;
 				width: 100%;
 				height: 100%;
-				background-color: rgba(0,0,0,0.5);
-			}
-
+      }
 			#instructions {
 				width: 100%;
 				height: 100%;
@@ -33,14 +40,17 @@
 	</head>
   <body>
     <!-- Contenedor del app -->
-    <div id="blocker">
+    <div id="fullScreen">
+      <div id="gameStats">
+        <p id="score" style="font-size:35px; padding-left: 15px; padding-bottom: 0px;">Score</p>        
+        <p id="time" style="font-size:35px; padding-left: 15px; padding-top: 0px;">Time</p>
+      </div>
 			<div id="instructions">
-				<p style="font-size:50px">
-					Click to play
-				</p>
-				<p style="font-size:40px">
-					Move: WA<br/>
-					Look: MOUSE
+				<p id="cartelinit" style="font-size:50px;"></p>
+				<p style="font-size:35px;">
+					Move: W A <br/>
+					Look: Mouse <br/>
+          Shoot: Click 
 				</p>
 			</div>
 		</div>
@@ -59,18 +69,20 @@
       import { MTLLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/MTLLoader';
 
       // Constantes
+      var constTiempo = 30000;
       var rotSpeed = 0.02;
       var vectorAceleracion = new THREE.Vector3(0, -9.8, 0);
       var velocidadLanzamiento = 100;
       var tamañoTerreno = 1000;
-      // var velocityConst = 40000.0;
-      var alturaPlataformaUp = 800;
+      var alturaUp = 1500;
       var anguloRotacionPlataforma = 0.025;
-      var speedGlobo = 15000;
+      var speedGlobo = 20000;
+      var speedGloboFast = 15000;
       var globosporsegundo = 0.5;
       var estadoStart = "Start";
       var estadoFinishedStart = "Finished Start";
       var estadoInicioJuego = "Game";
+      var estadoFinJuego = "End";
       var funcLoadingInProgress = function ( xhr ) {
           console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
         };
@@ -82,23 +94,19 @@
       var renderer, scene, cameraControls, cameraPer;
 
       // Escena
-      var plataformaDown, plataformaUp, globo, flecha;
+      var plataformaDown, globo, globoFast, flecha;
       var puntosGlobos, tamañoGlobo, plataformaDownRadio;
       var groupObjects;
 
       // Tiempo y Estado
       var estadoApp="Start";
-			var antes;
-      var globalScore;   
+			var tiempoRestante, antes;
+      var globalScore;  
+      var onGame = false; 
 
       // Movimiento
-      // let moveForward = false;
-			// let moveBackward = false;
 			let moveLeft = false;
 			let moveRight = false;
-
-			// const velocity = new THREE.Vector3();
-			// const direction = new THREE.Vector3();
 
       // Otras variables      
       var loaderGLTF;
@@ -138,42 +146,54 @@
       function initControlesCamara() {
         cameraControls = new PointerLockControls( cameraPer, document.body );
 
-				const blocker = document.getElementById( 'blocker' );
+				const fullScreen = document.getElementById( 'fullScreen' );
 				const instructions = document.getElementById( 'instructions' );
+        const gameStats = document.getElementById( 'gameStats' );
+        const cartelInit = document.getElementById( 'cartelinit' );
+        
+        gameStats.style.display = 'none';
+        fullScreen.style.backgroundColor ="rgba(26, 26, 26, 0.5)";
+        cartelInit.textContent = "Welcome! Click to play...";
 
-				instructions.addEventListener( 'click', function () {
+        var clickinit = function () {
 					cameraControls.lock();
-          window.addEventListener('click', sendFlecha);
-				} );
+        };
+
+				window.onclick = clickinit;
 
 				cameraControls.addEventListener( 'lock', function () {
+          gameStats.style.display = '';
 					instructions.style.display = 'none';
-					blocker.style.display = 'none';
+          fullScreen.style.backgroundColor = '';
+          onGame = true;
+          window.onclick = sendFlecha;
 				} );
 
 				cameraControls.addEventListener( 'unlock', function () {
-					blocker.style.display = 'block';
+          cartelInit.textContent = "Click to continue playing...";
+          gameStats.style.display = 'none';
 					instructions.style.display = '';
+          onGame = false;
+          fullScreen.style.backgroundColor ="rgba(26, 26, 26, 0.5)";
+          window.onclick = clickinit;
+
+          if (estadoApp === estadoFinJuego){
+            cartelInit.innerHTML = 
+            `Your final score: ${globalScore} <br\> Congrats! <br\> Click to start again... `;
+            estadoApp = estadoInicioJuego;
+            globalScore = 0;
+            tiempoRestante = constTiempo;
+          }
 				} );
 
 				scene.add( cameraControls.getObject() );
 
 				const onKeyDown = function ( event ) {
 					switch ( event.code ) {
-						// case 'ArrowUp':
-						// case 'KeyW':
-						// 	moveForward = true;
-						// 	break;
-
 						case 'ArrowLeft':
 						case 'KeyA':
 							moveLeft = true;
 							break;
-
-						// case 'ArrowDown':
-						// case 'KeyS':
-						// 	moveBackward = true;
-						// 	break;
 
 						case 'ArrowRight':
 						case 'KeyD':
@@ -184,20 +204,10 @@
 
 				const onKeyUp = function ( event ) {
 					switch ( event.code ) {
-						// case 'ArrowUp':
-						// case 'KeyW':
-						// 	moveForward = false;
-						// 	break;
-
 						case 'ArrowLeft':
 						case 'KeyA':
 							moveLeft = false;
 							break;
-
-						// case 'ArrowDown':
-						// case 'KeyS':
-						// 	moveBackward = false;
-						// 	break;
 
 						case 'ArrowRight':
 						case 'KeyD':
@@ -257,6 +267,12 @@
         // Cargador de objetos
         loaderGLTF = new GLTFLoader();
 
+        // Otros
+        tiempoRestante = constTiempo;
+        antes = 0;
+        globalScore = 0;
+        tamañoGlobo = 0;
+
         // var axish = new THREE.AxesHelper(300);
         // axish.setColors ( "red", "green", "blue" );
         // scene.add(axish);
@@ -271,7 +287,7 @@
         scene.add( points );
       }
 
-      function loadScenePlataformas() {        
+      function loadScenePlataforma() {        
         loaderGLTF.load(
           'models/circle/scene.gltf',          
           function ( gltf ) { 
@@ -284,13 +300,7 @@
                      
             plataformaDown = gltf.scene.children[0];
             plataformaDown.scale.set(20, 20, 20);
-
-            plataformaUp = plataformaDown.clone();
-            plataformaUp.name = "plataformaUp";
             plataformaDown.name = "plataformaDown";
-
-            plataformaUp.translateY(-alturaPlataformaUp);
-            groupObjects.add( plataformaUp );
             
             var boundingBox = new THREE.Box3().setFromObject(plataformaDown);
             var size = boundingBox.getSize(new THREE.Vector3());
@@ -315,21 +325,6 @@
         );
       }
 
-      // function loadScenePlataformaUp() {
-      //   loaderGLTF.load(
-      //     'models/circle/scene.gltf',
-      //     // called when the resource is loaded
-      //     function ( gltf ) {
-      //       plataformaUp = gltf.scene.children[0];
-            
-      //     },
-      //     // called while loading is progressing
-      //     funcLoadingInProgress,
-      //     // called when loading has errors
-      //     funcLoadingHasError
-      //   );
-      // }
-
       function loadGlobo() {
         loaderGLTF.load(
           'models/balloon1/scene.gltf',
@@ -344,10 +339,36 @@
             globo = gltf.scene.children[0];
             globo.scale.set(10, 10, 10);
             globo.name = 'globo';
+            globo.userData.score = 1;
 
             var boundingBox = new THREE.Box3().setFromObject(globo);
             var size = boundingBox.getSize(new THREE.Vector3());
-            tamañoGlobo = size.y;
+            tamañoGlobo = Math.max(size.y, tamañoGlobo);
+          },
+          funcLoadingInProgress,
+          funcLoadingHasError
+        );
+      }
+
+      function loadGloboFast() {
+        loaderGLTF.load(
+          'models/balloon2/scene.gltf',
+          function ( gltf ) {
+            gltf.scene.traverse( function ( object ) {
+              if ( object.isMesh ) {
+                  object.castShadow = true;
+                  object.receiveShadow = true;
+                }
+            } ); 
+
+            globoFast = gltf.scene.children[0];
+            globoFast.scale.set(60, 60, 60);
+            globoFast.name = 'globo';
+            globoFast.userData.score = 3;
+
+            var boundingBox = new THREE.Box3().setFromObject(globoFast);
+            var size = boundingBox.getSize(new THREE.Vector3());
+            tamañoGlobo = Math.max(size.y, tamañoGlobo);
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -355,13 +376,8 @@
       }
 
       function loadFlecha() {
-        // const geometry = new THREE.SphereGeometry(15, 15, 15 );
-        // const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
-        // flecha = new THREE.Mesh( geometry, material );
-
         loaderGLTF.load(
-          'models/granade/scene.gltf',
-          // called when the resource is loaded
+          'models/bomb/scene.gltf',
           function ( gltf ) {
             gltf.scene.traverse( function ( object ) {
               if ( object.isMesh ) {
@@ -371,14 +387,10 @@
             } ); 
 
             flecha = gltf.scene.children[0];
-            flecha.receiveShadow = true;
-            flecha.castShadow = true;
-            flecha.scale.set(0.05, 0.05, 0.05);
+            flecha.scale.set(5, 5, 5);
             flecha.name = 'flecha';
           },
-          // called while loading is progressing
           funcLoadingInProgress,
-          // called when loading has errors
           funcLoadingHasError
         );
       }
@@ -430,11 +442,12 @@
         // Suelo y Paredes
         createSueloParedes();
         
-        // Cargar y Colocar en Escena
-        loadScenePlataformas();
+        // Cargar y colocar en escena la Plataforma
+        loadScenePlataforma();
 
-        // Solo Cargar
+        // Cargar Globo y Flecha
         loadGlobo();
+        loadGloboFast();
         loadFlecha();
       }
 
@@ -447,13 +460,12 @@
       }
       
       function initAnimationFlecha(
-        newflecha, listaX, listaY, listaZ){
+        newflecha, listaX, listaY, listaZ, deltaTFall){
         var movObjeto = new TWEEN.Tween(newflecha.position)
           .to({
             x: listaX,
             y: listaY,
-            z: listaZ}, 
-            2000)
+            z: listaZ}, deltaTFall*200)
           .interpolation(TWEEN.Interpolation.Bezier)
           .onComplete(function(){
             scene.remove(newflecha);
@@ -463,9 +475,12 @@
             for(let item of groupObjects.children){
               var boundingBoxItem = new THREE.Box3().setFromObject(item);
               if(boundingBoxFlecha.intersectsBox(boundingBoxItem)){
-                console.log(item.name);
+                if (item.name === 'globo'){
+                  globalScore += item.userData.score;
+                  console.log(globalScore);
+                  groupObjects.remove(item);
+                }
                 scene.remove(newflecha);
-                if (item.name === 'globo') groupObjects.remove(item);
                 movObjeto.stop();
                 break;
               }
@@ -474,9 +489,9 @@
         movObjeto.start();
       }
 
-      function initAnimationGlobo(globo){
+      function initAnimationGlobo(globo, delay){
         var movObjeto = new TWEEN.Tween( globo.position )
-          .to({ y:alturaPlataformaUp}, speedGlobo)          
+          .to({ y:alturaUp}, delay)          
           .onComplete(function(){
             groupObjects.remove(globo);
           });
@@ -484,12 +499,21 @@
       }
 
       function sendGlobo(){
-        var newglobo = globo.clone();
+        var selectglobo =  Math.random() < 0.7;
+        var newglobo, delay;
+        if (selectglobo){
+          newglobo = globo.clone();
+          delay = speedGlobo;
+        } 
+        else {
+          newglobo = globoFast.clone();
+          delay = speedGloboFast;
+        } 
         var randomValue = puntosGlobos[
           Math.floor(puntosGlobos.length * Math.random())];
         newglobo.position.set(randomValue[0], -tamañoGlobo, randomValue[2]);
         groupObjects.add(newglobo);
-        initAnimationGlobo(newglobo);  
+        initAnimationGlobo(newglobo, delay);  
       }
 
       function sendFlecha(){
@@ -530,13 +554,13 @@
         }
         
         scene.add(newflecha);
-        initAnimationFlecha(newflecha, puntosX, puntosY, puntosZ);
+        initAnimationFlecha(newflecha, puntosX, puntosY, puntosZ, deltaTFall);
       }
 
       function setStatesApp(){
         if(estadoApp == estadoStart){
           if(globo != null && 
-            plataformaDown != null && plataformaUp != null &&
+            plataformaDown != null &&
             flecha != null){
               estadoApp = estadoFinishedStart;
             }
@@ -544,8 +568,10 @@
         else if(estadoApp == estadoFinishedStart ){
           estadoApp = estadoInicioJuego;
           initAnimationPlataforma(plataformaDown);
-          initAnimationPlataforma(plataformaUp);
           window.setInterval(sendGlobo, 1000/globosporsegundo);        
+        }
+        else if(estadoApp == estadoFinJuego){
+          cameraControls.unlock();
         }
       }
 
@@ -572,7 +598,19 @@
         caminar();
 
         const ahora = performance.now();
-				antes = ahora; 
+
+        if(onGame){
+          const time = document.getElementById( 'time' );
+          tiempoRestante -= ahora-antes;
+          if(tiempoRestante < 0){
+            estadoApp = estadoFinJuego;
+          }
+          time.textContent = `Time Left: ${Math.round(tiempoRestante/1000)}`;
+          const score = document.getElementById( 'score' );
+          score.textContent = `Score: ${globalScore}`;
+        }
+       				
+        antes = ahora;
       }
 
       function render() {

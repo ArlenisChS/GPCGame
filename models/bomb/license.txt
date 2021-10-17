@@ -1,0 +1,11 @@
+Model Information:
+* title:	Bomb
+* source:	https://sketchfab.com/3d-models/bomb-f9a355d8d3ad41419d983aa6ecaa0f5c
+* author:	Zambur (https://sketchfab.com/Zambur)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Bomb" (https://sketchfab.com/3d-models/bomb-f9a355d8d3ad41419d983aa6ecaa0f5c) by Zambur (https://sketchfab.com/Zambur) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
