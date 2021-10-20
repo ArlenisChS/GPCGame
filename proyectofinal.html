@@ -11,7 +11,7 @@
       }
       p{
         font-weight: bold; 
-        font-family: Candara;
+        font-family: Courier;
       }
       #fullScreen {
         position: absolute;
@@ -42,15 +42,16 @@
     <!-- Contenedor del app -->
     <div id="fullScreen">
       <div id="gameStats">
-        <p id="score" style="font-size:35px; padding-left: 15px; padding-bottom: 0px;">Score</p>        
-        <p id="time" style="font-size:35px; padding-left: 15px; padding-top: 0px;">Time</p>
+        <p id="score" style="font-size:45px; padding-left: 15px; padding-bottom: 0px;">Score</p>        
+        <p id="time" style="font-size:45px; padding-left: 15px; padding-top: 0px;">Time</p>
       </div>
 			<div id="instructions">
 				<p id="cartelinit" style="font-size:50px;"></p>
 				<p style="font-size:35px;">
 					Move: W A <br/>
 					Look: Mouse <br/>
-          Shoot: Click 
+          Shoot: Click <br/>
+          Pause: Scape
 				</p>
 			</div>
 		</div>
@@ -69,7 +70,7 @@
       import { MTLLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/MTLLoader';
 
       // Constantes
-      var constTiempo = 30000;
+      var constTiempo = 50000;
       var rotSpeed = 0.02;
       var vectorAceleracion = new THREE.Vector3(0, -9.8, 0);
       var velocidadLanzamiento = 100;
@@ -79,16 +80,19 @@
       var speedGlobo = 20000;
       var speedGloboFast = 15000;
       var globosporsegundo = 0.5;
-      var estadoStart = "Start";
-      var estadoFinishedStart = "Finished Start";
-      var estadoInicioJuego = "Game";
-      var estadoFinJuego = "End";
       var funcLoadingInProgress = function ( xhr ) {
           console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
         };
       var funcLoadingHasError = function ( error ) {
           console.log( 'An error happened' );
         };
+
+      // Cnts Estados
+      var estadoLoad = "Load";
+      var estadoFinishedLoad = "Finished Load";
+      var estadoOnGame = "On Game";
+      var estadoPause = "Pause";
+      var estadoEnd = "End";
 
       // Variables de consenso
       var renderer, scene, cameraControls, cameraPer;
@@ -97,19 +101,20 @@
       var plataformaDown, globo, globoFast, flecha;
       var puntosGlobos, tamañoGlobo, plataformaDownRadio;
       var groupObjects;
+      var finishedglobo, finishedplataformaDown; 
+      var finishedflecha, finishedglobofast;
 
       // Tiempo y Estado
-      var estadoApp="Start";
+      var estadoApp="Load";
 			var tiempoRestante, antes;
-      var globalScore;  
-      var onGame = false; 
+      var globalScore;   
 
       // Movimiento
 			let moveLeft = false;
 			let moveRight = false;
 
-      // Otras variables      
-      var loaderGLTF;
+      // Otros
+      var clickinit;
 
       // Acciones
       init();
@@ -155,17 +160,15 @@
         fullScreen.style.backgroundColor ="rgba(26, 26, 26, 0.5)";
         cartelInit.textContent = "Welcome! Click to play...";
 
-        var clickinit = function () {
+        clickinit = function () {
 					cameraControls.lock();
         };
-
-				window.onclick = clickinit;
 
 				cameraControls.addEventListener( 'lock', function () {
           gameStats.style.display = '';
 					instructions.style.display = 'none';
           fullScreen.style.backgroundColor = '';
-          onGame = true;
+          estadoApp = estadoOnGame;
           window.onclick = sendFlecha;
 				} );
 
@@ -173,17 +176,17 @@
           cartelInit.textContent = "Click to continue playing...";
           gameStats.style.display = 'none';
 					instructions.style.display = '';
-          onGame = false;
           fullScreen.style.backgroundColor ="rgba(26, 26, 26, 0.5)";
           window.onclick = clickinit;
 
-          if (estadoApp === estadoFinJuego){
+          if (estadoApp === estadoEnd){
             cartelInit.innerHTML = 
             `Your final score: ${globalScore} <br\> Congrats! <br\> Click to start again... `;
-            estadoApp = estadoInicioJuego;
             globalScore = 0;
             tiempoRestante = constTiempo;
           }
+
+          estadoApp = estadoPause;
 				} );
 
 				scene.add( cameraControls.getObject() );
@@ -264,14 +267,15 @@
         // Capturar el evento de resize
         window.addEventListener('resize', updateAspectRatio);
 
-        // Cargador de objetos
-        loaderGLTF = new GLTFLoader();
-
         // Otros
         tiempoRestante = constTiempo;
         antes = 0;
         globalScore = 0;
         tamañoGlobo = 0;
+        finishedglobo = false;
+        finishedplataformaDown = false; 
+        finishedflecha = false;
+        finishedglobofast = false;
 
         // var axish = new THREE.AxesHelper(300);
         // axish.setColors ( "red", "green", "blue" );
@@ -287,7 +291,8 @@
         scene.add( points );
       }
 
-      function loadScenePlataforma() {        
+      function loadScenePlataforma() { 
+        var loaderGLTF = new GLTFLoader();       
         loaderGLTF.load(
           'models/circle/scene.gltf',          
           function ( gltf ) { 
@@ -319,6 +324,7 @@
 
             plataformaDown.translateY(-size.y/2);
             groupObjects.add( plataformaDown );
+            finishedplataformaDown = true;
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -326,6 +332,7 @@
       }
 
       function loadGlobo() {
+        var loaderGLTF = new GLTFLoader();
         loaderGLTF.load(
           'models/balloon1/scene.gltf',
           function ( gltf ) {
@@ -344,6 +351,12 @@
             var boundingBox = new THREE.Box3().setFromObject(globo);
             var size = boundingBox.getSize(new THREE.Vector3());
             tamañoGlobo = Math.max(size.y, tamañoGlobo);
+            finishedglobo = true;
+
+            var testglobo = globo.clone();
+            scene.add(testglobo);
+            renderer.render(scene, cameraPer);
+            scene.remove(testglobo);
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -351,6 +364,7 @@
       }
 
       function loadGloboFast() {
+        var loaderGLTF = new GLTFLoader();
         loaderGLTF.load(
           'models/balloon2/scene.gltf',
           function ( gltf ) {
@@ -369,6 +383,12 @@
             var boundingBox = new THREE.Box3().setFromObject(globoFast);
             var size = boundingBox.getSize(new THREE.Vector3());
             tamañoGlobo = Math.max(size.y, tamañoGlobo);
+            finishedglobofast = true;
+
+            var testglobo = globoFast.clone();
+            scene.add(testglobo);
+            renderer.render(scene, cameraPer);
+            scene.remove(testglobo);
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -376,6 +396,7 @@
       }
 
       function loadFlecha() {
+        var loaderGLTF = new GLTFLoader();
         loaderGLTF.load(
           'models/bomb/scene.gltf',
           function ( gltf ) {
@@ -389,6 +410,12 @@
             flecha = gltf.scene.children[0];
             flecha.scale.set(5, 5, 5);
             flecha.name = 'flecha';
+            finishedflecha = true;
+
+            var testFlecha = flecha.clone();
+            scene.add(testFlecha);
+            renderer.render(scene, cameraPer);
+            scene.remove(testFlecha);
           },
           funcLoadingInProgress,
           funcLoadingHasError
@@ -477,7 +504,6 @@
               if(boundingBoxFlecha.intersectsBox(boundingBoxItem)){
                 if (item.name === 'globo'){
                   globalScore += item.userData.score;
-                  console.log(globalScore);
                   groupObjects.remove(item);
                 }
                 scene.remove(newflecha);
@@ -558,26 +584,37 @@
       }
 
       function setStatesApp(){
-        if(estadoApp == estadoStart){
-          if(globo != null && 
-            plataformaDown != null &&
-            flecha != null){
-              estadoApp = estadoFinishedStart;
+        const ahora = performance.now();
+        if(estadoApp == estadoLoad){
+          if(finishedglobo && finishedplataformaDown 
+              && finishedflecha && finishedglobofast){
+              estadoApp = estadoFinishedLoad;
             }
         }
-        else if(estadoApp == estadoFinishedStart ){
-          estadoApp = estadoInicioJuego;
+        else if(estadoApp == estadoFinishedLoad ){
           initAnimationPlataforma(plataformaDown);
-          window.setInterval(sendGlobo, 1000/globosporsegundo);        
+          window.setInterval(sendGlobo, 1000/globosporsegundo);  
+          window.onclick = clickinit;
+          estadoApp = estadoPause;      
         }
-        else if(estadoApp == estadoFinJuego){
+        else if(estadoApp == estadoOnGame){
+          const time = document.getElementById( 'time' );
+          tiempoRestante -= ahora-antes;
+          if(tiempoRestante < 0){
+            estadoApp = estadoEnd;
+          }
+          time.textContent = `Time Left: ${Math.round(tiempoRestante/1000)}`;
+          const score = document.getElementById( 'score' );
+          score.textContent = `Score: ${globalScore}`;
+        }
+        else if(estadoApp == estadoEnd){
           cameraControls.unlock();
-        }
+        } 
+        antes = ahora;	
       }
 
       function caminar() {  
         if ( cameraControls.isLocked === true ) {
-
           var x = cameraPer.position.x,
             y = cameraPer.position.y,
             z = cameraPer.position.z;
@@ -596,21 +633,6 @@
         TWEEN.update();
         setStatesApp();
         caminar();
-
-        const ahora = performance.now();
-
-        if(onGame){
-          const time = document.getElementById( 'time' );
-          tiempoRestante -= ahora-antes;
-          if(tiempoRestante < 0){
-            estadoApp = estadoFinJuego;
-          }
-          time.textContent = `Time Left: ${Math.round(tiempoRestante/1000)}`;
-          const score = document.getElementById( 'score' );
-          score.textContent = `Score: ${globalScore}`;
-        }
-       				
-        antes = ahora;
       }
 
       function render() {
@@ -619,7 +641,6 @@
         renderer.clear();
 
         // Perspectiva
-        renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
         renderer.render(scene, cameraPer);
       }
     </script>
